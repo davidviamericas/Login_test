@@ -12,17 +12,33 @@ export default function Home() {
   const [Password, setPassword] = useState<string>();
 
   const login = async () => {
-    const url = "https://vianex.viamericas.io/USA000006/authentication/signin";
-    const response = await axios.post(
-      url,
-      {
-        email: "doocando@gmail.com", // User
-        password: "Sola1234@", // Password
-        devicekey: "12345678",
-      }
-    );
+    //axios.defaults.xsrfCookieName = 'VA_RME_DEVICE_ID'
+    //axios.defaults.xsrfHeaderName = "7252d67b-1fd0-4149-8b46-89d134878d90"
+    //axios.defaults.withCredentials = true;
+    try{
+      const url =
+      "https://qa-vianex.viamericas.io/v2/risk/USA000006/authentication/signin";
+    const response = await axios.post(url, {
+      email: User,
+      password: Password,
+      devicekey: "",
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        //Cookie: 'VA_RME_DEVICE_ID=7252d67b-1fd0-4149-8b46-89d134878d90',
+        //withCredentials: true
+      },
+      //withCredentials: true
+    });
     console.log("response");
     console.log(JSON.stringify(response));
+    alert(`Response => ${JSON.stringify(response)}`);
+    }
+    catch(e){
+      console.log(e);
+      alert("ha ocurrido un error, revisa la consola");
+    }
   };
 
   return (
