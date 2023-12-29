@@ -4,38 +4,59 @@ import { Inter } from "@next/font/google";
 import styles from "../styles/Home.module.css";
 import { useState } from "react";
 import axios from "axios";
+import { decodingJWT } from "../common";
+import { Button } from "@mui/material";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
-  const [User, setUser] = useState<string>();
-  const [Password, setPassword] = useState<string>();
+  const [ChainId, setChainId] = useState<string>("USA000006");
+  const [User, setUser] = useState<string>("test-1@inmindsoftware.com");
+  const [Password, setPassword] = useState<string>("Martest321@");
+  const [Cookie, setCookie] = useState<string>("VA_RME_DEVICE_ID=5832d653-2717-4fa1-8460-8deb0ac35fd7");
+
+  const generateLocalStorageData = (response: any) => {
+    if (response?.data?.id_token) {
+      const tokenDecoded = decodingJWT(response.data.id_token);
+      const data = JSON.stringify({
+        chainId: ChainId,
+        token: response.data.id_token,
+        expiration: tokenDecoded.exp * 1000,
+        UUID: tokenDecoded["custom:idSenderGlobal"],
+        cookie: Cookie,
+      });
+      localStorage.setItem("data", data);
+      window.location.href = "/";
+    }
+  }
 
   const login = async () => {
     //axios.defaults.xsrfCookieName = 'VA_RME_DEVICE_ID'
     //axios.defaults.xsrfHeaderName = "7252d67b-1fd0-4149-8b46-89d134878d90"
     //axios.defaults.withCredentials = true;
-    try{
+    try {
       const url =
-      "https://qa-vianex.viamericas.io/v2/risk/USA000006/authentication/signin";
-    const response = await axios.post(url, {
-      email: User,
-      password: Password,
-      devicekey: "",
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        //Cookie: 'VA_RME_DEVICE_ID=7252d67b-1fd0-4149-8b46-89d134878d90',
-        //withCredentials: true
+        `https://qa-vianex.viamericas.io/v2/risk/${ChainId}/authentication/signin`;
+      const response: any = await axios.post(url, {
+        email: User,
+        password: Password,
+        devicekey: "",
       },
-      //withCredentials: true
-    });
-    console.log("response");
-    console.log(JSON.stringify(response));
-    alert(`Response => ${JSON.stringify(response)}`);
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Client-Headers': `{"Cookie":"${Cookie}","Remote Address":"190.27.142.70, 130.176.214.237","User-Agent":"PostmanRuntime/7.29.2"}`,
+            //withCredentials: true
+          },
+          //withCredentials: true
+        });
+      console.log("response");
+      console.log(JSON.stringify(response));
+      generateLocalStorageData(response);
+      alert(`Response => ${JSON.stringify(response)}`);
+      window.location.href = '/sender';
     }
-    catch(e){
+    catch (e) {
       console.log(e);
       alert("ha ocurrido un error, revisa la consola");
     }
@@ -53,6 +74,20 @@ export default function Home() {
         <h2 className={inter.className}>Login</h2>
         <div style={{ width: "80%", margin: "auto" }}>
           <div style={{ margin: "15px 0px" }}>
+            <h3 className={inter.className}>Chain Id</h3>
+            <input
+              style={{
+                width: "100%",
+                fontSize: "20px",
+                fontFamily: "monospace",
+                padding: "10px",
+                margin: "10px 0px 0px 10px",
+              }}
+              onChange={(value) => setChainId(value.target.value)}
+              defaultValue={ChainId}
+            ></input>
+          </div>
+          <div style={{ margin: "15px 0px" }}>
             <h3 className={inter.className}>Usuario</h3>
             <input
               style={{
@@ -63,6 +98,7 @@ export default function Home() {
                 margin: "10px 0px 0px 10px",
               }}
               onChange={(value) => setUser(value.target.value)}
+              defaultValue={User}
             ></input>
           </div>
           <div>
@@ -77,6 +113,22 @@ export default function Home() {
                 margin: "10px 0px 0px 10px",
               }}
               onChange={(value) => setPassword(value.target.value)}
+              defaultValue={Password}
+            ></input>
+          </div>
+          <div>
+            <h3 className={inter.className}>Cookie</h3>
+            <input
+              type="text"
+              style={{
+                width: "100%",
+                fontSize: "20px",
+                fontFamily: "monospace",
+                padding: "10px",
+                margin: "10px 0px 0px 10px",
+              }}
+              onChange={(value) => setCookie(value.target.value)}
+              defaultValue={Cookie}
             ></input>
           </div>
           <div>
@@ -93,6 +145,22 @@ export default function Home() {
             >
               Enviar
             </button>
+          </div>
+          <div>
+            <Button
+              variant="text"
+              style={{
+                padding: "10px 15px",
+                minWidth: "125px",
+                fontSize: "18px",
+                margin: "10px -10px",
+                cursor: "pointer",
+                textDecoration: "underline",
+              }}
+              onClick={() => window.location.href = "/register"}
+            >
+              Registrate Aquí
+            </Button>
           </div>
         </div>
       </main>
