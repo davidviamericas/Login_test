@@ -1,37 +1,52 @@
-import { Box, Button, Divider, FormControl, FormGroup, Input, InputLabel, Typography } from "@mui/material"
+import { Box, Button, Divider, FormControl, FormGroup, Input, InputLabel, MenuItem, Select, Typography } from "@mui/material"
 import axios from "axios";
 import { use, useEffect, useState } from "react"
 import Layout from "../../components/layout";
 
+import AxiosMonitor from "../../components/axios_monitor";
+import useAxiosInterceptor from "../../common/stores/axios_interceptor";
+import userInfo from "../../common/stores/user_info";
+import { userInfoProps } from "../../common/types";
+import useLoader from "../../common/Loader/hook";
+import { useSearchParams } from "next/navigation";
+
 
 const SenderUpdate = () => {
+    const { getEnv, getUserInfo } = userInfo();
+    const { setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor } = useAxiosInterceptor();
+
     const [givenNames, setGivenNames] = useState<any>("");
     const [familyNames, setFamilyNames] = useState<any>("");
     const [phone, setPhone] = useState<any>("");
-    const [phoneCountryCode, setPhoneCountryCode] = useState<any>("");
+    const [phoneCountryCode, setPhoneCountryCode] = useState<any>("1");
     const [employerPhoneNumber, setEmployerPhoneNumber] = useState<any>("");
-    const [employerPNCountryCode, setEmployerPNCountryCode] = useState<any>("");
+    const [employerPNCountryCode, setEmployerPNCountryCode] = useState<any>("1");
     const [birthDate, setBirthDate] = useState<any>("");
     const [addressLine1, setAddressLine1] = useState<any>("");
-    const [stateId, setStateId] = useState<any>("AL");
-    const [cityName, setCityName] = useState<any>("ABERNANT");
-    const [countryId, setCountryId] = useState<any>("USA");
-    const [zipCode, setZipCode] = useState<any>("12345");
+    const [stateId, setStateId] = useState<any>("");
+    const [cityName, setCityName] = useState<any>("");
+    const [countryId, setCountryId] = useState<any>("");
+    const [zipCode, setZipCode] = useState<any>("");
     const [employer, setEmployer] = useState<any>("");
-    const [industry, setIndustry] = useState<any>("SERVICIOS/OPERACIONES");
-    const [idIndustry, setIdIndustry] = useState<any>("5");
-    const [occupation, setOccupation] = useState<any>("AGENTE");
-    const [idJob, setIdJob] = useState<any>("81");
-    const [originFounds, setOriginFounds] = useState<any>("SAVINGS");
+    const [industry, setIndustry] = useState<any>("");
+    const [idIndustry, setIdIndustry] = useState<any>("");
+    const [occupation, setOccupation] = useState<any>("");
+    const [idJob, setIdJob] = useState<any>("");
+    const [originFounds, setOriginFounds] = useState<any>("");
     const [ssnNumber, setSsnNumber] = useState<any>("");
-    const [countryIssuerId, setCountryIssuerId] = useState<any>("USA");
-    const [documentNumber, setDocumentNumber] = useState<any>("");
-    const [documentType, setDocumentType] = useState<any>("DL");
-    const [expirationDate, setExpirationDate] = useState<any>("2032-05-02T12:00:00.000");
-    const [stateIssuerId, setStateIssuerId] = useState<any>("FL");
 
     const [sender, setSender] = useState<any>();
-    const [oneTime, _] = useState<any>(true);
+    const [countries, setCountries] = useState<any[]>([]);
+    const [states, setStates] = useState<any[]>([]);
+    const [cities, setCities] = useState<any[]>([]);
+    const [industries, setIndustries] = useState<any[]>([]);
+    const [occupations, setOccupations] = useState<any[]>([]);
+    const [fundsOrigin, setFundsOrigin] = useState<any[]>([]);
+
+    const { setLoader } = useLoader();
+
+    const searchParams = useSearchParams();
+    const envValue = getEnv();
 
     useEffect(() => {
         if (sender) {
@@ -40,8 +55,8 @@ const SenderUpdate = () => {
     }, [sender]);
 
     useEffect(() => {
-        getSender();
-    }, [oneTime]);
+        getOccupations(idIndustry);
+    }, [idIndustry, industries]);
 
     const buildSender = async () => {
         setGivenNames(`${sender.firstName} ${sender.secondName}`);
@@ -63,39 +78,42 @@ const SenderUpdate = () => {
         setIdJob(sender.idJob);
         setOriginFounds(sender.originFounds);
         setSsnNumber(sender.ssnNumber);
-        setCountryIssuerId(sender.countryIssuerId);
-        setDocumentNumber(sender.documentNumber);
-        setDocumentType(sender.documentType);
-        setExpirationDate(sender.expirationDate);
-        setStateIssuerId(sender.stateIssuerId);
     }
 
     const getSender = async () => {
+        setLoader(true);
         try {
-            const data: any = JSON.parse(localStorage.getItem("data") || "{}");
-            const url = `https://qa-vianex.viamericas.io/${data.chainId}/senders/${data.UUID}`;
-            const response = await axios.get(url, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${data.token}`,
-                    //'X-Client-Headers': `{"Cookie":"${Cookie}","Remote Address":"
-                }
-            });
-            console.log("response");
-            console.log(JSON.stringify(response));
+            const data: userInfoProps = getUserInfo();
+            const url = `https://${envValue || 'uat'}-vianex.viamericas.io/${data.chainId}/senders/${data.UUID}`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`,
+
+            }
+            const response: any = await AxiosMonitor({
+                urlApi: url,
+                method: "GET",
+                bodyRequest: null,
+                headers: headers,
+            }, setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor);
             setSender(response.data);
         }
-        catch (e) {
+        catch (e: any) {
             console.log(e);
-            alert("ha ocurrido un error, revisa la consola");
+            if (e.response?.data) {
+                alert(typeof e.response?.data === "object" ? JSON.stringify(e.response?.data) : e.response?.data)
+            }
+            else alert("An error has occurred, check the logs");
         }
+        setLoader(false);
     }
 
     const updateSender = async () => {
+        setLoader(true);
         try {
-            const data: any = JSON.parse(localStorage.getItem("data") || "{}");
-            const url = `https://qa-vianex.viamericas.io/${data.chainId}/senders/${data.UUID}/update-2`;
-            const response = await axios.put(url, {
+            const data: userInfoProps = getUserInfo();
+            const url = `https://${envValue || 'uat'}-vianex.viamericas.io/${data.chainId}/senders/${data.UUID}/update-2`;
+            const body = {
                 givenNames: givenNames,
                 familyNames: familyNames,
                 phone: phone,
@@ -114,30 +132,163 @@ const SenderUpdate = () => {
                 occupation: occupation,
                 idJob: idJob,
                 originFounds: originFounds,
-                ssnNumber: ssnNumber,
-                countryIssuerId: countryIssuerId,
-                documentNumber: documentNumber,
-                documentType: documentType,
-                expirationDate: expirationDate,
-                stateIssuerId: stateIssuerId
-            }, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${data.token}`,
-                    //'X-Client-Headers': `{"Cookie":"${Cookie}","Remote Address":"190.27.142.70, 130.176.214.237","User-Agent":"PostmanRuntime/7.29.2"}`,
-                    //withCredentials: true
-                },
-                //withCredentials: true
-            });
-            console.log("response");
-            console.log(JSON.stringify(response));
-            alert(`Response => ${JSON.stringify(response)}`);
+                ssnNumber: ssnNumber
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`,
+            }
+            const response = await AxiosMonitor({
+                urlApi: url,
+                method: "PUT",
+                bodyRequest: body,
+                headers: headers,
+            }, setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor);
+
+            alert('Updated successfully');
         }
-        catch (e) {
+        catch (e: any) {
             console.log(e);
-            alert("ha ocurrido un error, revisa la consola");
+            if (e.response?.data) {
+                alert(typeof e.response?.data === "object" ? JSON.stringify(e.response?.data) : e.response?.data)
+            }
+            else alert("An error has occurred, check the logs");
+        }
+        setLoader(false);
+    }
+
+    const getCountries = async () => {
+        setLoader(true);
+        try {
+            const data: userInfoProps = getUserInfo();
+            const url = `https://${envValue || 'uat'}-vianex.viamericas.io/v2/catalogs/${data.chainId}/countries`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`,
+            }
+            const response = await AxiosMonitor({
+                urlApi: url,
+                method: "GET",
+                bodyRequest: null,
+                headers: headers,
+            }, setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor);
+            setCountries(response.data.filter((x: any) => x.idCountry === "USA"));
+        }
+        catch (e: any) {
+            console.log(e);
+            if (e.response?.data) {
+                alert(typeof e.response?.data === "object" ? JSON.stringify(e.response?.data) : e.response?.data)
+            }
+            else alert("An error has occurred, check the logs");
+        }
+        setLoader(false);
+    }
+
+    const getLocation = async () => {
+        if (!zipCode) {
+            alert("zipCode is required");
+            return;
+        }
+        setLoader(true);
+        try {
+            const data: userInfoProps = getUserInfo();
+            const url = `https://${envValue || 'uat'}-vianex.viamericas.io/v2/catalogs/${data.chainId}/master/zipcodes/${zipCode}`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`,
+            }
+            const response = await AxiosMonitor({
+                urlApi: url,
+                method: "GET",
+                bodyRequest: null,
+                headers: headers,
+            }, setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor);
+            let dataLocation = response.data;
+            let resultStates: any = [];
+            let resultCities: any = [];
+
+            for (let item of dataLocation) {
+                if (!resultCities.some((city: any) => city.CityAliasName === item.CityAliasName)) {
+                    resultCities.push({ CityAliasName: item.CityAliasName });
+                }
+                if (!resultStates.some((state: any) => state.State === item.State)) {
+                    resultStates.push({ State: item.State, StateFullName: item.StateFullName });
+                }
+            }
+            setStates(resultStates);
+            setCities(resultCities);
+        }
+        catch (e: any) {
+            console.log(e);
+            if (e.response?.data) {
+                alert(typeof e.response?.data === "object" ? JSON.stringify(e.response?.data) : e.response?.data)
+            }
+            else alert("An error has occurred, check the logs");
+        }
+        setLoader(false);
+    }
+
+    const getIndustries = async () => {
+        setLoader(true);
+        try {
+            const data: userInfoProps = getUserInfo();
+            const url = `https://${envValue || 'uat'}-vianex.viamericas.io/v2/catalogs/${data.chainId}/industry`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`,
+            }
+            const response = await AxiosMonitor({
+                urlApi: url,
+                method: "GET",
+                bodyRequest: null,
+                headers: headers,
+            }, setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor);
+            setIndustries(response.data);
+        }
+        catch (e: any) {
+            console.log(e);
+            if (e.response?.data) {
+                alert(typeof e.response?.data === "object" ? JSON.stringify(e.response?.data) : e.response?.data)
+            }
+            else alert("An error has occurred, check the logs");
+        }
+        setLoader(false);
+    }
+
+    const getOccupations = (industryId: string) => {
+        const industry = industries.find((x: any) => x.id === industryId);
+        if (industry) {
+            setOccupations(industry.jobs);
         }
     }
+
+    const getFundsOrigin = async () => {
+        setLoader(true);
+        try {
+            const data: userInfoProps = getUserInfo();
+            const url = `https://${envValue || 'uat'}-vianex.viamericas.io/v2/catalogs/${data.chainId}/funds-origin`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`,
+            }
+            const response = await AxiosMonitor({
+                urlApi: url,
+                method: "GET",
+                bodyRequest: null,
+                headers: headers,
+            }, setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor);
+            setFundsOrigin(response.data);
+        }
+        catch (e : any) {
+            console.log(e);
+            if(e.response?.data){
+                alert(typeof e.response?.data === "object" ? JSON.stringify(e.response?.data) : e.response?.data)
+            }
+            else alert("An error has occurred, check the logs");
+        }
+        setLoader(false);
+    }
+
 
     return (
         <Layout>
@@ -147,13 +298,20 @@ const SenderUpdate = () => {
 
                     <Divider style={{ margin: "20px" }} />
 
-                    <Typography variant="h4">Personal Information</Typography>
+                    <Typography variant="h6">Zipcodes de ejemplos: 12345, 58079</Typography>
+                    <Box style={{ width: "90%", margin: "auto", display: "flex", justifyContent: "space-between" }}>
+                        <Button id={"getCountries"} variant="contained" onClick={async () => await getCountries()}>1. Get Countries</Button>
+                        <Button id={"getIndustries"} variant="contained" onClick={async () => await getIndustries()}>2. Get Industries</Button>
+                        <Button id={"getSender"} variant="contained" onClick={async () => await getSender()}>3. Get Sender</Button>
+                        <Button id={"getLocation"} variant="contained" onClick={async () => await getLocation()}>4. Get Location</Button>
+                        <Button id={"getFundsOrigin"} variant="contained" onClick={async () => await getFundsOrigin()}>5. Get Funds Origin</Button>
+                    </Box>
                 </Box>
 
                 <Divider style={{ margin: "20px" }} />
                 <Box style={{ width: "90%", margin: "auto" }}>
                     <FormGroup row={true}>
-                        <FormControl variant="standard" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="standard" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="givenNames">Given Names</InputLabel>
                             <Input
                                 id="givenNames"
@@ -161,7 +319,7 @@ const SenderUpdate = () => {
                                 onChange={(e: any) => setGivenNames(e.target.value)}
                             />
                         </FormControl>
-                        <FormControl variant="standard" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="standard" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="familyNames">Family Names</InputLabel>
                             <Input
                                 id="familyNames"
@@ -169,7 +327,7 @@ const SenderUpdate = () => {
                                 onChange={(e: any) => setFamilyNames(e.target.value)}
                             />
                         </FormControl>
-                        <FormControl variant="standard" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="standard" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="phone">Phone</InputLabel>
                             <Input
                                 id="phone"
@@ -177,7 +335,7 @@ const SenderUpdate = () => {
                                 onChange={(e: any) => setPhone(e.target.value)}
                             />
                         </FormControl>
-                        <FormControl variant="standard" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="standard" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="phoneCountryCode">Phone Country Code</InputLabel>
                             <Input
                                 id="phoneCountryCode"
@@ -185,7 +343,7 @@ const SenderUpdate = () => {
                                 onChange={(e: any) => setPhoneCountryCode(e.target.value)}
                             />
                         </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="employerPhoneNumber">Employer Phone Number</InputLabel>
                             <Input
                                 id="employerPhoneNumber"
@@ -193,7 +351,7 @@ const SenderUpdate = () => {
                                 onChange={(e: any) => setEmployerPhoneNumber(e.target.value)}
                             />
                         </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="employerPNCountryCode">Employer Phone Number Country Code</InputLabel>
                             <Input
                                 id="employerPNCountryCode"
@@ -201,7 +359,7 @@ const SenderUpdate = () => {
                                 onChange={(e: any) => setEmployerPNCountryCode(e.target.value)}
                             />
                         </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="birthDate">Birth Date</InputLabel>
                             <Input
                                 id="birthDate"
@@ -209,7 +367,7 @@ const SenderUpdate = () => {
                                 onChange={(e: any) => setBirthDate(e.target.value)}
                             />
                         </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="addressLine1">Address Line 1</InputLabel>
                             <Input
                                 id="addressLine1"
@@ -217,31 +375,21 @@ const SenderUpdate = () => {
                                 onChange={(e: any) => setAddressLine1(e.target.value)}
                             />
                         </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
-                            <InputLabel htmlFor="stateId">State ID</InputLabel>
-                            <Input
-                                id="stateId"
-                                value={stateId}
-                                onChange={(e: any) => setStateId(e.target.value)}
-                            />
-                        </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
-                            <InputLabel htmlFor="cityName">City Name</InputLabel>
-                            <Input
-                                id="cityName"
-                                value={cityName}
-                                onChange={(e: any) => setCityName(e.target.value)}
-                            />
-                        </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="countryId">Country ID</InputLabel>
-                            <Input
-                                id="countryId"
+                            <Select
+                                labelId="formLabel"
+                                variant="standard"
+                                id="formLabel"
+                                onChange={(e) => setCountryId(e.target.value)}
+                                label={"Country ID"}
                                 value={countryId}
-                                onChange={(e: any) => setCountryId(e.target.value)}
-                            />
+                                fullWidth
+                            >
+                                {countries.map(f => <MenuItem value={f.idCountry}>{`${f.nameCountry}`}</MenuItem>)}
+                            </Select>
                         </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="zipCode">Zip Code</InputLabel>
                             <Input
                                 id="zipCode"
@@ -249,7 +397,35 @@ const SenderUpdate = () => {
                                 onChange={(e: any) => setZipCode(e.target.value)}
                             />
                         </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
+                            <InputLabel htmlFor="stateId">State</InputLabel>
+                            <Select
+                                labelId="stateId"
+                                variant="standard"
+                                id="stateId"
+                                onChange={(e) => setStateId(e.target.value)}
+                                label={"State"}
+                                value={stateId}
+                                fullWidth
+                            >
+                                {states.map(f => <MenuItem value={f.State}>{`${f.StateFullName}`}</MenuItem>)}
+                            </Select>
+                        </FormControl>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
+                            <InputLabel htmlFor="cityName">City Name</InputLabel>
+                            <Select
+                                labelId="cityName"
+                                variant="standard"
+                                id="cityName"
+                                onChange={(e) => setCityName(e.target.value)}
+                                label={"State"}
+                                value={cityName}
+                                fullWidth
+                            >
+                                {cities.map(f => <MenuItem value={f.CityAliasName}>{`${f.CityAliasName}`}</MenuItem>)}
+                            </Select>
+                        </FormControl>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="employer">Employer</InputLabel>
                             <Input
                                 id="employer"
@@ -257,92 +433,62 @@ const SenderUpdate = () => {
                                 onChange={(e: any) => setEmployer(e.target.value)}
                             />
                         </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="industry">Industry</InputLabel>
-                            <Input
+                            <Select
+                                labelId="industry"
+                                variant="standard"
                                 id="industry"
-                                value={industry}
-                                onChange={(e: any) => setIndustry(e.target.value)}
-                            />
-                        </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
-                            <InputLabel htmlFor="idIndustry">ID Industry</InputLabel>
-                            <Input
-                                id="idIndustry"
+                                onChange={(e) => {
+                                    const industry = industries.find((x: any) => x.id === e.target.value);
+                                    setIndustry(industry.industryName);
+                                    setIdIndustry(industry.id);
+                                }}
+                                label={"industry"}
                                 value={idIndustry}
-                                onChange={(e: any) => setIdIndustry(e.target.value)}
-                            />
+                                fullWidth
+                            >
+                                {industries.map(f => <MenuItem value={f.id}>{`${f.industryName}`}</MenuItem>)}
+                            </Select>
                         </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="occupation">Occupation</InputLabel>
-                            <Input
+                            <Select
+                                labelId="occupation"
+                                variant="standard"
                                 id="occupation"
-                                value={occupation}
-                                onChange={(e: any) => setOccupation(e.target.value)}
-                            />
-                        </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
-                            <InputLabel htmlFor="idJob">ID Job</InputLabel>
-                            <Input
-                                id="idJob"
+                                onChange={(e) => {
+                                    const occupation = occupations.find((x: any) => x.idjob === e.target.value);
+                                    setOccupation(occupation.job);
+                                    setIdJob(occupation.idjob);
+                                }}
+                                label={"occupation"}
                                 value={idJob}
-                                onChange={(e: any) => setIdJob(e.target.value)}
-                            />
+                                fullWidth
+                            >
+                                {occupations.map(f => <MenuItem value={f.idjob}>{`${f.job}`}</MenuItem>)}
+                            </Select>
                         </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="originFounds">Origin Founds</InputLabel>
-                            <Input
+                            <Select
+                                labelId="originFounds"
+                                variant="standard"
                                 id="originFounds"
+                                onChange={(e) => setOriginFounds(e.target.value)}
+                                label={"originFounds"}
                                 value={originFounds}
-                                onChange={(e: any) => setOriginFounds(e.target.value)}
-                            />
+                                fullWidth
+                            >
+                                {fundsOrigin.map(f => <MenuItem value={f.originDescription}>{`${f.originDescription}`}</MenuItem>)}
+                            </Select>
                         </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
+                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "31%" }}>
                             <InputLabel htmlFor="ssnNumber">SSN Number</InputLabel>
                             <Input
                                 id="ssnNumber"
                                 value={ssnNumber}
                                 onChange={(e: any) => setSsnNumber(e.target.value)}
-                            />
-                        </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
-                            <InputLabel htmlFor="countryIssuerId">Country Issuer ID</InputLabel>
-                            <Input
-                                id="countryIssuerId"
-                                value={countryIssuerId}
-                                onChange={(e: any) => setCountryIssuerId(e.target.value)}
-                            />
-                        </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
-                            <InputLabel htmlFor="documentNumber">Document Number</InputLabel>
-                            <Input
-                                id="documentNumber"
-                                value={documentNumber}
-                                onChange={(e: any) => setDocumentNumber(e.target.value)}
-                            />
-                        </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
-                            <InputLabel htmlFor="documentType">Document Type</InputLabel>
-                            <Input
-                                id="documentType"
-                                value={documentType}
-                                onChange={(e: any) => setDocumentType(e.target.value)}
-                            />
-                        </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
-                            <InputLabel htmlFor="expirationDate">Expiration Date</InputLabel>
-                            <Input
-                                id="expirationDate"
-                                value={expirationDate}
-                                onChange={(e: any) => setExpirationDate(e.target.value)}
-                            />
-                        </FormControl>
-                        <FormControl variant="outlined" style={{ margin: "10px 1%", width: "18%" }}>
-                            <InputLabel htmlFor="stateIssuerId">State Issuer ID</InputLabel>
-                            <Input
-                                id="stateIssuerId"
-                                value={stateIssuerId}
-                                onChange={(e: any) => setStateIssuerId(e.target.value)}
                             />
                         </FormControl>
                     </FormGroup>

@@ -7,71 +7,69 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import Layout from '../../components/layout';
-import axios from 'axios';
 import { Box, Button, Divider, SliderValueLabel, Typography } from '@mui/material';
-import { Create } from '@mui/icons-material';
 import CreateForm from './createForm';
 
-function createData(
-    name: string,
-    calories: number,
-    fat: number,
-    carbs: number,
-    protein: number,
-) {
-    return { name, calories, fat, carbs, protein };
-}
-
-const rows = [
-    createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
-    createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
-    createData('Eclair', 262, 16.0, 24, 6.0),
-    createData('Cupcake', 305, 3.7, 67, 4.3),
-    createData('Gingerbread', 356, 16.0, 49, 3.9),
-];
+import AxiosMonitor from "../../components/axios_monitor";
+import useAxiosInterceptor from "../../common/stores/axios_interceptor";
+import userInfo from "../../common/stores/user_info";
+import { userInfoProps } from "../../common/types";
+import useLoader from '../../common/Loader/hook';
+import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/router';
 
 export default function List() {
 
+    const searchParams = useSearchParams();
+    const { getEnv, getUserInfo } = userInfo();
+    const { setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor } = useAxiosInterceptor();
+    const { setLoader } = useLoader();
+    const router = useRouter();
+
     const [recipients, setRecipients] = React.useState<any[]>([]);
-    const [update, setUpdate] = React.useState<any>("");
-    const [open, setOpen] = React.useState<any>(false);
 
-    React.useEffect(() => {
-        getRecipients();
-    }, [update]);
-
+    const envValue = getEnv();
 
     const getRecipients = async () => {
+        setLoader(true);
         try {
-            const data: any = JSON.parse(localStorage.getItem("data") || "{}");
-            const url = `https://qa-vianex.viamericas.io/${data.chainId}/senders/${data.UUID}/recipients`;
-            const response = await axios.get(url, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${data.token}`,
-                    //'X-Client-Headers': `{"Cookie":"${Cookie}","Remote Address":"190.27.142.70, 130.176.214.237","User-Agent":"PostmanRuntime/7.29.2"}`,
-                }
-            });
-            console.log("response");
-            console.log(JSON.stringify(response));
+            const data: userInfoProps = getUserInfo();
+            const url = `https://${envValue || 'uat'}-vianex.viamericas.io/${data.chainId}/senders/${data.UUID}/recipients`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`,
+                //'X-Client-Headers': `{"Cookie":"${Cookie}","Remote Address":"190.27.142.70, 130.176.214.237","User-Agent":"PostmanRuntime/7.29.2"}`,
+            };
+            const response: any = await AxiosMonitor({
+                urlApi: url,
+                method: "GET",
+                bodyRequest: null,
+                headers: headers,
+            }, setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor);
             setRecipients(response.data);
         }
-        catch (e) {
+        catch (e : any) {
             console.log(e);
-            alert("ha ocurrido un error, revisa la consola");
+            if (e.response?.data) {
+                alert(typeof e.response?.data === "object" ? JSON.stringify(e.response?.data) : e.response?.data)
+            }
+            else alert("An error has occurred, check the logs");
         }
+        setLoader(false);
     }
 
 
     return (
         <Layout>
             <Box style={{ width: "90%", margin: "auto" }}>
-                <CreateForm open={open} setOpen={setOpen} updateEvent={setUpdate} />
                 <Box style={{ textAlign: "center" }}>
                     <Typography variant="h3">Recipients</Typography>
                 </Box>
 
-                <Button variant="contained" onClick={() => setOpen(true)} style={{ margin: "20px 0px" }}>Create Recipient</Button>
+                <Box>
+                    <Button variant="outlined" onClick={getRecipients} style={{ margin: "20px 0px" }}>Get Recipient</Button>
+                    <Button variant="contained" onClick={() => router.push("/recipient/createForm")} style={{ margin: "20px 0px" }}>Create Recipient</Button>
+                </Box>
 
                 <Divider style={{ margin: "20px" }} />
 

@@ -13,6 +13,11 @@ import MenuIcon from '@mui/icons-material/Menu';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import Monitor from '../axios_monitor/monitor';
+import { userInfoProps } from '../../common/types';
+import userInfo from "../../common/stores/user_info";
+import { useRouter, useSearchParams } from 'next/navigation'
+import Loader from '../../common/Loader';
 
 interface Props {
   /**
@@ -22,6 +27,7 @@ interface Props {
   children: JSX.Element
 }
 
+var intervalId: any;
 
 const drawerWidth = 240;
 const navItems = [{
@@ -35,22 +41,61 @@ const navItems = [{
 {
   name: 'Plaid',
   path: '/plaid'
+},
+{
+  name: 'Transactions',
+  path: '/transactions'
+},
+{
+  name: 'Salir',
+  path: '/',
+  event: () => {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+  }
 }];
 
 export default function Layout(props: Props) {
   const { children } = props;
+  const { getEnv, getUserInfo } = userInfo();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const envValue = getEnv();
 
   React.useEffect(() => {
-    const data: any = JSON.parse(localStorage.getItem("data") || "{}");
-    if (data.token && data.expiration) {
+    const checkSession = () => {
+      const data: userInfoProps = getUserInfo();
+
+      if (data.token && data.expiration) {
         const now = new Date();
         const expiration = new Date(data.expiration);
+
         if (now > expiration) {
-            window.location.href = "/";
+          clearInterval(intervalId);
+          alert("Your session has expired");
+          router.push(`/${envValue ? '?env=' + envValue : ''}`);
         }
+      }
+    };
+
+    // Llamamos a la función de comprobación al inicio
+    checkSession();
+
+    // Configuramos el intervalo
+    intervalId = setInterval(checkSession, 3000);
+
+    // Limpiamos el intervalo cuando el componente se desmonta
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const goTo = (item: any) => {
+    if (item.event) {
+      item.event();
     }
-});
+    router.push(`/${item.path}${envValue ? '?env=' + envValue : ''}`);
+  }
 
   const handleDrawerToggle = () => {
     setMobileOpen((prevState) => !prevState);
@@ -58,6 +103,7 @@ export default function Layout(props: Props) {
 
   const drawer = (
     <Box onClick={handleDrawerToggle} sx={{ textAlign: 'center' }}>
+      <Loader />
       <Typography variant="h6" sx={{ my: 2 }}>
         Via Digital
       </Typography>
@@ -65,7 +111,7 @@ export default function Layout(props: Props) {
       <List>
         {navItems.map((item) => (
           <ListItem key={item.name} disablePadding>
-            <ListItemButton sx={{ textAlign: 'center' }} onClick={() => window.location.href = item.path}>
+            <ListItemButton sx={{ textAlign: 'center' }} onClick={() => goTo(item)}>
               <ListItemText primary={item.name} />
             </ListItemButton>
           </ListItem>
@@ -79,6 +125,7 @@ export default function Layout(props: Props) {
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
+      <Loader />
       <AppBar component="nav">
         <Toolbar>
           <IconButton
@@ -99,7 +146,7 @@ export default function Layout(props: Props) {
           </Typography>
           <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
             {navItems.map((item) => (
-              <Button key={item.name} sx={{ color: '#fff' }} onClick={() => window.location.href = item.path}>
+              <Button key={item.name} sx={{ color: '#fff' }} onClick={() => goTo(item)}>
                 {item.name}
               </Button>
             ))}
@@ -123,8 +170,8 @@ export default function Layout(props: Props) {
           {drawer}
         </Drawer>
       </nav>
-      <Box component="main" style={{ width: "100%" }} sx={{ p: 3 }}>
-        <Toolbar />
+      <Box component="main" style={{ width: "100%", display: 'flex', marginTop: "60px" }}>
+        <Monitor />
         {children}
       </Box>
     </Box>

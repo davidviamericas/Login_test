@@ -3,16 +3,24 @@ import CloseIcon from '@mui/icons-material/Close';
 import { Input } from ".";
 import { Inter } from "@next/font/google";
 import { useState } from "react";
-import axios from "axios";
 
+import AxiosMonitor from "../../components/axios_monitor";
+import useAxiosInterceptor from "../../common/stores/axios_interceptor";
+import useLoader from "../../common/Loader/hook";
+import { useSearchParams } from "next/navigation";
+import userInfo from "../../common/stores/user_info";
 const inter = Inter({ subsets: ["latin"] });
 
 const MFA = (props: any) => {
+    const { getEnv } = userInfo();
+    const { setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor } = useAxiosInterceptor();
+
     const { open, setOpen, EventID, UUID, chainId, loginEvent, setCookie, setEventID } = props;
     const [TokenMFA, setTokenMFA] = useState<any>("");
     const [TypeMFA, setTypeMFA] = useState<any>("phone");
-
-
+    const { setLoader } = useLoader();
+    const searchParams = useSearchParams();
+    const envValue = getEnv();
 
     const handleClose = () => {
         setOpen(false);
@@ -24,50 +32,66 @@ const MFA = (props: any) => {
             alert("Token MFA es requerido");
             return;
         }
-        try {   
-            const url = `https://qa-vianex.viamericas.io/v2/risk/${chainId}/authentication/verify-token-mfa`;
-            const response = await axios.post(url, {
+        setLoader(true);
+        try {
+            const url = `https://${envValue || 'uat'}-vianex.viamericas.io/v2/risk/${chainId}/authentication/verify-token-mfa`;
+            const body = {
                 EventID: EventID,
                 Token: TokenMFA
-            },{
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Client-Headers': `{"Latitude": 19.0699797, "Remote Address": "103.66.96.230", "User-Agent": "Mozilla/5.0 (Windows NT 5.1; rv:19.0) Gecko/20100101 Firefox/19.0", "Altitude": null, "AltitudeAccuracy": null, "Heading": null, "Longitude": 72.8397202, "Speed": null}`
-                }
-            });
-            console.log("response");
-            console.log(JSON.stringify(response));
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'X-Client-Headers': `{"Latitude": 19.0699797, "Remote Address": "103.66.96.230", "User-Agent": "Mozilla/5.0 (Windows NT 5.1; rv:19.0) Gecko/20100101 Firefox/19.0", "Altitude": null, "AltitudeAccuracy": null, "Heading": null, "Longitude": 72.8397202, "Speed": null}`
+            };
+            const response: any = await AxiosMonitor({
+                urlApi: url,
+                method: "POST",
+                bodyRequest: body,
+                headers: headers,
+            }, setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor);
             loginEvent();
         }
-        catch (e) {
+        catch (e: any) {
             console.log(e);
-            alert("ha ocurrido un error, revisa la consola");
+            if (e.response?.data) {
+                alert(typeof e.response?.data === "object" ? JSON.stringify(e.response?.data) : e.response?.data)
+            }
+            else alert("An error has occurred, check the logs");
         }
+        setLoader(false);
     }
 
     // authentication/send-token-mfa
     const sendMFA = async () => {
-        try {   
-            const url = `https://qa-vianex.viamericas.io/v2/risk/${chainId}/authentication/send-token-mfa`;
-            const response = await axios.post(url, {
+        setLoader(true);
+        try {
+            const url = `https://${envValue || 'uat'}-vianex.viamericas.io/v2/risk/${chainId}/authentication/send-token-mfa`;
+            const body = {
                 CustomerID: UUID,
                 Type: TypeMFA
-            },{
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Client-Headers': `{"Latitude": 19.0699797, "Remote Address": "103.66.96.230", "User-Agent": "Mozilla/5.0 (Windows NT 5.1; rv:19.0) Gecko/20100101 Firefox/19.0", "Altitude": null, "AltitudeAccuracy": null, "Heading": null, "Longitude": 72.8397202, "Speed": null}`
-                }
-            });
-            console.log("response");
-            console.log(JSON.stringify(response));
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'X-Client-Headers': `{"Latitude": 19.0699797, "Remote Address": "103.66.96.230", "User-Agent": "Mozilla/5.0 (Windows NT 5.1; rv:19.0) Gecko/20100101 Firefox/19.0", "Altitude": null, "AltitudeAccuracy": null, "Heading": null, "Longitude": 72.8397202, "Speed": null}`
+            }
+            const response: any = await AxiosMonitor({
+                urlApi: url,
+                method: "POST",
+                bodyRequest: body,
+                headers: headers,
+            }, setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor);
             setCookie(response.data['Set-Cookie']);
             setEventID(response.data.EventID);
             alert("Token Enviado");
         }
-        catch (e) {
+        catch (e: any) {
             console.log(e);
-            alert("ha ocurrido un error, revisa la consola");
+            if (e.response?.data) {
+                alert(typeof e.response?.data === "object" ? JSON.stringify(e.response?.data) : e.response?.data)
+            }
+            else alert("An error has occurred, check the logs");
         }
+        setLoader(false);
     }
 
     return (

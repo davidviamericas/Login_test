@@ -1,56 +1,82 @@
 import { Box, Button, Divider, Grid, Link, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 import React, { useEffect } from "react";
 import Layout from "../../components/layout";
-import axios from "axios";
 import Paper from '@mui/material/Paper';
 
+import AxiosMonitor from "../../components/axios_monitor";
+import useAxiosInterceptor from "../../common/stores/axios_interceptor";
+import userInfo from "../../common/stores/user_info";
+import { userInfoProps } from "../../common/types";
+import useLoader from "../../common/Loader/hook";
+import { useSearchParams } from 'next/navigation'
+
 const Plaid = () => {
+    const searchParams = useSearchParams();
+    const { getEnv, getUserInfo } = userInfo();
+    const { setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor } = useAxiosInterceptor();
+
     const [urlPlaid, setUrlPlaid] = React.useState('');
     const [fundingAccounts, setFundingAccounts] = React.useState<any[]>([]);
-    const [oneTime, _] = React.useState<any>("");
 
-    useEffect(() => {
-        getFundingAccounts();
-    }, [oneTime]);
+    const { setLoader } = useLoader();
+    const envValue = getEnv();
 
     const getPlaidLink = async () => {
+        setLoader(true);
         try {
-            const data: any = JSON.parse(localStorage.getItem("data") || "{}");
-            const url = `https://qa-vianex.viamericas.io/v2/risk/${data.chainId}/senders/${data.UUID}/plaid/init`;
-            const response = await axios.post(url, {}, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${data.token}`,
-                    'X-Client-Headers': `{"Cookie":"${data.cookie}","Remote Address":"190.27.142.70, 130.176.214.237","User-Agent":"PostmanRuntime/7.29.2"}`,
-                }
-            });
-            console.log(response);
+            const data: userInfoProps = getUserInfo();
+            const url = `https://${envValue || 'uat'}-vianex.viamericas.io/v2/risk/${data.chainId}/senders/${data.UUID}/plaid/init`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`,
+                'X-Client-Headers': `{"Cookie":"${data.cookie}","Remote Address":"190.27.142.70, 130.176.214.237","User-Agent":"PostmanRuntime/7.29.2"}`,
+            }
+            const body = {};
+            const response: any = await AxiosMonitor({
+                urlApi: url,
+                method: "POST",
+                bodyRequest: body,
+                headers: headers,
+            }, setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor);
             setUrlPlaid(response.data.redirectUrl);
         }
-        catch (err) {
-            console.log(err);
-            alert("ha ocurrido un error, revisa la consola");
+        catch (e : any) {
+            console.log(e);
+            if(e.response?.data){
+                alert(typeof e.response?.data === "object" ? JSON.stringify(e.response?.data) : e.response?.data)
+            }
+            else alert("An error has occurred, check the logs");
         }
+        setLoader(false);
     }
 
     const getFundingAccounts = async () => {
+        setLoader(true);
         try {
-            const data: any = JSON.parse(localStorage.getItem("data") || "{}");
-            const url = `https://qa-vianex.viamericas.io/v2/risk/${data.chainId}/senders/${data.UUID}/funding-accounts`;
-            const response = await axios.get(url, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${data.token}`,
-                    'X-Client-Headers': `{"Cookie":"${data.cookie}","Remote Address":"190.27.142.70, 130.176.214.237","User-Agent":"PostmanRuntime/7.29.2"}`,
-                }
-            });
+            const data: userInfoProps = getUserInfo();
+            const url = `https://${envValue || 'uat'}-vianex.viamericas.io/v2/risk/${data.chainId}/senders/${data.UUID}/funding-accounts`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`,
+                'X-Client-Headers': `{"Cookie":"${data.cookie}","Remote Address":"190.27.142.70, 130.176.214.237","User-Agent":"PostmanRuntime/7.29.2"}`,
+            };
+            const response: any = await AxiosMonitor({
+                urlApi: url,
+                method: "GET",
+                bodyRequest: null,
+                headers: headers,
+            }, setInterceptor, updateInterceptor, getOpenInterceptor, setOpenInterceptor);
             console.log(response);
             setFundingAccounts(response.data);
         }
-        catch (err) {
-            console.log(err);
-            alert("ha ocurrido un error, revisa la consola");
+        catch (e : any) {
+            console.log(e);
+            if(e.response?.data){
+                alert(typeof e.response?.data === "object" ? JSON.stringify(e.response?.data) : e.response?.data)
+            }
+            else alert("An error has occurred, check the logs");
         }
+        setLoader(false);
     }
 
     return (
@@ -70,7 +96,7 @@ const Plaid = () => {
                         <Grid item xs={12} sm={2}>
                             <Button variant="outlined" onClick={getPlaidLink}>Generate Plaid Link</Button>
                         </Grid>
-                        <Grid item xs={12} sm={8}>
+                        <Grid item xs={12} sm={6}>
                             <Link href={urlPlaid} target="_blank" underline="hover" rel="noopener noreferrer">{urlPlaid}</Link>
                         </Grid>
                     </Grid>
